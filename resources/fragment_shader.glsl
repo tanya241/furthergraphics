@@ -48,24 +48,61 @@ float sphere(vec3 pt) {
 }
 
 /**
-float cube(vec3 pt, vec3 dim) {
-    vec3 d = abs(pt) - dim;
-    return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d,0.0));
-}
-*/
-
 float cube(vec3 p) {
   vec3 d = abs(p);
   return max(d.x, max(d.y, d.z)) - 1;
 }
+*/
+
+float cube(vec3 p) {
+    vec3 d = abs(p) - vec3(1); // 1 = radius
+    return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
+}
+
+float blend(float a, float b){
+    float k = 0.2;
+    float h = clamp(0.5 + 0.5 * (b - a)/k, 0, 1);
+    return mix(b, a, h) - k * h * (1-h);
+}
+
+float scene(vec3 p){
+
+    float cube1, cube2, cube3, cube4;
+    float sphere1, sphere2, sphere3, sphere4;
+    float shape1, shape2, shape3, shape4;
+
+    cube1 = cube(p - vec3(-3,0,-3));
+    sphere1 = sphere(p - vec3(-2, 0, -2));
+    shape1 = min(cube1, sphere1);
+
+    cube2 = cube(p - vec3(3,0,-3));
+    sphere2 = sphere(p - vec3(4, 0, -2));
+    shape2 = max(cube2, -sphere2);
+
+    cube3 = cube(p - vec3(-3,0,3));
+    sphere3 = sphere(p - vec3(-2,0,4));
+    shape3 = blend(cube3, sphere3);
+
+    cube4 = cube(p - vec3(3,0,3));
+    sphere4 = sphere(p - vec3(4,0,4));
+    shape4 = max(cube4, sphere4);
+
+
+    float unioned = min(min(shape1 , shape2), min(shape3, shape4));
+
+    return unioned;
+}
+
 
 vec3 getNormal(vec3 pt) {
-  return normalize(GRADIENT(pt, sphere));
+  return normalize(GRADIENT(pt, scene));
 }
 
 vec3 getColor(vec3 pt) {
   return vec3(1);
 }
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -96,9 +133,13 @@ vec3 raymarch(vec3 camPos, vec3 rayDir) {
 
   for (float d = 1000; step < RENDER_DEPTH && abs(d) > CLOSE_ENOUGH; t += abs(d)) {
 
-//    d = sphere(camPos + t * rayDir);
+ //    d = sphere(camPos + t * rayDir);
 
-    d = cube(camPos + t * rayDir);
+//    d = cube(camPos + t * rayDir);
+
+      d = scene(camPos + t * rayDir);
+
+//changing camPos moves the origin of the camera itself
 
     step++;
   }
