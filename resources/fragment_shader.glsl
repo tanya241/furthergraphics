@@ -60,7 +60,7 @@ float cube(vec3 p) {
 }
 
 float torus(vec3 p, vec2 t){
-    vec2 q = vec2(length(p.xz) - t.x, p.y);
+    vec2 q = vec2(length(p.xy) - t.x, p.z);
     return length(q) - t.y;
 }
 
@@ -117,13 +117,39 @@ float fPlane(vec3 p){
     return plane(vec3(p) - vec3(0, -1, 0), vec4(0, 1, 0, 0));
 }
 
+float softShadow(vec3 p) {
+
+     int i = 0;
+     float kd;
+
+    vec3 lightDir = normalize(LIGHT_POS[i] - p);
+    kd = 1;
+    int step = 0;
+
+    for (float t = 0.1; t < length(LIGHT_POS[i] - p) && step < RENDER_DEPTH && kd > 0.001; ){
+        float d = abs(fSceneTorus(p + t * lightDir));
+        if (d < 0.001){
+            kd = 0;
+        } else {
+            kd = min(kd, 16 * d/t);
+        }
+
+        t += d;
+        step++;
+        i++;
+    }
+
+
+     return kd;
+}
+
 float f(vec3 p){
     float x = fSceneTorus(p);
+
     float y = fPlane(p);
 
     return min(x,y);
 }
-
 
 vec3 getNormal(vec3 pt) {
   return normalize(GRADIENT(pt, f));
@@ -165,8 +191,6 @@ float shade(vec3 eye, vec3 pt, vec3 n) {
 
   val += 0.1;  // Ambient
 
-  float x = fSceneTorus(pt);
-
   for (int i = 0; i < LIGHT_POS.length(); i++) {
     vec3 l = normalize(LIGHT_POS[i] - pt);
     float diffuse = 1.0 * max(dot(n, l), 0);
@@ -179,6 +203,9 @@ float shade(vec3 eye, vec3 pt, vec3 n) {
     val += specular;
 
   }
+
+
+
   return val;
 }
 
@@ -186,7 +213,8 @@ vec3 illuminate(vec3 camPos, vec3 rayDir, vec3 pt) {
   vec3 c, n;
   n = getNormal(pt);
   c = getDistanceColour(pt);
-  return shade(camPos, pt, n) * c;
+  return softShadow(pt)*shade(camPos, pt, n) * c;
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
