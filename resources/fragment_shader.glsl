@@ -59,13 +59,18 @@ float cube(vec3 p) {
     return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
 }
 
+float plane(vec3 p, vec4 n){
+    return dot(p, n.xyz) + n.w;
+}
+
 float blend(float a, float b){
     float k = 0.2;
     float h = clamp(0.5 + 0.5 * (b - a)/k, 0, 1);
     return mix(b, a, h) - k * h * (1-h);
 }
 
-float scene(vec3 p){
+//returns closest jump that can be taken from sdf of scene and its objects
+float fScene(vec3 p){
 
     float cube1, cube2, cube3, cube4;
     float sphere1, sphere2, sphere3, sphere4;
@@ -87,21 +92,54 @@ float scene(vec3 p){
     sphere4 = sphere(p - vec3(4,0,4));
     shape4 = max(cube4, sphere4);
 
-
     float unioned = min(min(shape1 , shape2), min(shape3, shape4));
 
     return unioned;
 }
 
+float fPlane(vec3 p){
+    return plane(vec3(p) - vec3(0, -1, 0), vec4(0, 1, 0, 0));
+}
+
+float f(vec3 p){
+    float x = fScene(p);
+    float y = fPlane(p);
+
+    return min(x,y);
+}
+
 
 vec3 getNormal(vec3 pt) {
-  return normalize(GRADIENT(pt, scene));
+  return normalize(GRADIENT(pt, f));
 }
 
 vec3 getColor(vec3 pt) {
   return vec3(1);
 }
 
+//need colour based on sd of pt from the cubes
+vec3 getDistanceColour(vec3 pt){
+    float x = fScene(pt);
+    float y = fPlane(pt);
+    vec3 colour;
+
+    if (x < y){
+        colour = getColor(pt);
+    } else {
+        x = mod(x, 5.25);
+
+        if (5 <= x){
+             colour = vec3(0,0,0);
+        }
+
+        if (x < 5){
+            float x2 = mod(x, 1);
+            colour = mix(vec3(0.4, 1,  0.4), vec3(0.4, 0.4, 1), x2);
+        }
+    }
+
+    return colour;
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -121,7 +159,7 @@ float shade(vec3 eye, vec3 pt, vec3 n) {
 vec3 illuminate(vec3 camPos, vec3 rayDir, vec3 pt) {
   vec3 c, n;
   n = getNormal(pt);
-  c = getColor(pt);
+  c = getDistanceColour(pt);
   return shade(camPos, pt, n) * c;
 }
 
@@ -137,7 +175,7 @@ vec3 raymarch(vec3 camPos, vec3 rayDir) {
 
 //    d = cube(camPos + t * rayDir);
 
-      d = scene(camPos + t * rayDir);
+      d = f(camPos + t * rayDir);
 
 //changing camPos moves the origin of the camera itself
 
