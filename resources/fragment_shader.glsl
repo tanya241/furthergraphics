@@ -59,7 +59,18 @@ float cube(vec3 p) {
     return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
 }
 
-float torus(vec3 p, vec2 t){
+float torus1(vec3 p, vec2 t){
+    vec2 q = vec2(length(p.xy) - t.x, p.z);
+    return length(q) - t.y;
+}
+
+
+float torus2(vec3 p, vec2 t){
+    vec2 q = vec2(length(p.xz) - t.x, p.y);
+    return length(q) - t.y;
+}
+
+float torus3(vec3 p, vec2 t){
     vec2 q = vec2(length(p.xy) - t.x, p.z);
     return length(q) - t.y;
 }
@@ -106,11 +117,24 @@ float fScene(vec3 p){
 
 float fSceneTorus(vec3 p){
 
-    float torus;
+/**
 
-    torus = torus(p - vec3(0,3,0), vec2(3, 1));
+    float torus1;
+    torus1 = torus1(p - vec3(0,0,0), vec2(3, 0.5));
+    */
 
-    return torus;
+    float torus2;
+    vec3 pos = vec3(mod(p.x + 4, 8) - 4, p.y , mod(p.z, 8));
+    torus2 = torus2(pos - vec3(0, 0, 4), vec2(3, 0.5));
+
+    float torus3;
+    vec3 pos2 = vec3(mod(p.x, 8), p.y , mod(p.z, 8));
+    torus3 = torus3(pos2 - vec3(4,0,4), vec2(3, 0.5));
+
+    float torus1;
+    torus1 = torus1(p - vec3(0,0,0), vec2(3, 0.5));
+
+    return min(min(torus3, torus2), torus1);
 }
 
 float fPlane(vec3 p){
@@ -144,8 +168,8 @@ float softShadow(vec3 p) {
 }
 
 float f(vec3 p){
-    float x = fSceneTorus(p);
 
+    float x = fSceneTorus(p);
     float y = fPlane(p);
 
     return min(x,y);
