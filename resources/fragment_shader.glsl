@@ -59,22 +59,6 @@ float cube(vec3 p) {
     return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
 }
 
-float torus1(vec3 p, vec2 t){
-    vec2 q = vec2(length(p.xy) - t.x, p.z);
-    return length(q) - t.y;
-}
-
-
-float torus2(vec3 p, vec2 t){
-    vec2 q = vec2(length(p.xz) - t.x, p.y);
-    return length(q) - t.y;
-}
-
-float torus3(vec3 p, vec2 t){
-    vec2 q = vec2(length(p.xy) - t.x, p.z);
-    return length(q) - t.y;
-}
-
 float plane(vec3 p, vec4 n){
     return dot(p, n.xyz) + n.w;
 }
@@ -85,7 +69,6 @@ float blend(float a, float b){
     return mix(b, a, h) - k * h * (1-h);
 }
 
-/**
 //returns closest jump that can be taken from sdf of scene and its objects
 float fScene(vec3 p){
 
@@ -113,67 +96,18 @@ float fScene(vec3 p){
 
     return unioned;
 }
-*/
-
-float fSceneTorus(vec3 p){
-
-/**
-
-    float torus1;
-    torus1 = torus1(p - vec3(0,0,0), vec2(3, 0.5));
-    */
-
-    float torus2;
-    vec3 pos = vec3(mod(p.x + 4, 8) - 4, p.y , mod(p.z, 8));
-    torus2 = torus2(pos - vec3(0, 0, 4), vec2(3, 0.5));
-
-    float torus3;
-    vec3 pos2 = vec3(mod(p.x, 8), p.y , mod(p.z, 8));
-    torus3 = torus3(pos2 - vec3(4,0,4), vec2(3, 0.5));
-
-    float torus1;
-    torus1 = torus1(p - vec3(0,0,0), vec2(3, 0.5));
-
-    return min(min(torus3, torus2), torus1);
-}
 
 float fPlane(vec3 p){
     return plane(vec3(p) - vec3(0, -1, 0), vec4(0, 1, 0, 0));
 }
 
-float softShadow(vec3 p) {
-
-     int i = 0;
-     float kd;
-
-    vec3 lightDir = normalize(LIGHT_POS[i] - p);
-    kd = 1;
-    int step = 0;
-
-    for (float t = 0.1; t < length(LIGHT_POS[i] - p) && step < RENDER_DEPTH && kd > 0.001; ){
-        float d = abs(fSceneTorus(p + t * lightDir));
-        if (d < 0.001){
-            kd = 0;
-        } else {
-            kd = min(kd, 16 * d/t);
-        }
-
-        t += d;
-        step++;
-        i++;
-    }
-
-
-     return kd;
-}
-
 float f(vec3 p){
-
-    float x = fSceneTorus(p);
+    float x = fScene(p);
     float y = fPlane(p);
 
     return min(x,y);
 }
+
 
 vec3 getNormal(vec3 pt) {
   return normalize(GRADIENT(pt, f));
@@ -185,20 +119,20 @@ vec3 getColor(vec3 pt) {
 
 //need colour based on sd of pt from the cubes
 vec3 getDistanceColour(vec3 pt){
-    float x = fSceneTorus(pt);
+    float x = fScene(pt);
     float y = fPlane(pt);
     vec3 colour;
 
     if (x < y){
         colour = getColor(pt);
     } else {
-        x = mod(x, 5.25);
+        x = mod(x, 5);
 
-        if (5 <= x){
+        if (4.75 <= x){
              colour = vec3(0,0,0);
         }
 
-        if (x < 5){
+        if (x < 4.75){
             float x2 = mod(x, 1);
             colour = mix(vec3(0.4, 1,  0.4), vec3(0.4, 0.4, 1), x2);
         }
@@ -217,19 +151,8 @@ float shade(vec3 eye, vec3 pt, vec3 n) {
 
   for (int i = 0; i < LIGHT_POS.length(); i++) {
     vec3 l = normalize(LIGHT_POS[i] - pt);
-    float diffuse = 1.0 * max(dot(n, l), 0);
-    val += diffuse;
-
-    vec3 viewDir = normalize(pt - eye);
-    vec3 reflectDir = normalize(reflect(l, normalize(n)));
-
-    float specular = 1.0 * pow(max(dot(reflectDir, viewDir), 0), 256);
-    val += specular;
-
+    val += max(dot(n, l), 0);
   }
-
-
-
   return val;
 }
 
@@ -237,8 +160,7 @@ vec3 illuminate(vec3 camPos, vec3 rayDir, vec3 pt) {
   vec3 c, n;
   n = getNormal(pt);
   c = getDistanceColour(pt);
-  return softShadow(pt)*shade(camPos, pt, n) * c;
-
+  return shade(camPos, pt, n) * c;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
