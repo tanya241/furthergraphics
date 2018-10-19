@@ -59,7 +59,18 @@ float cube(vec3 p) {
     return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
 }
 
-float torus(vec3 p, vec2 t){
+float torus1(vec3 p, vec2 t){
+    vec2 q = vec2(length(p.yz) - t.x, p.x);
+    return length(q) - t.y;
+}
+
+
+float torus2(vec3 p, vec2 t){
+    vec2 q = vec2(length(p.xz) - t.x, p.y);
+    return length(q) - t.y;
+}
+
+float torus3(vec3 p, vec2 t){
     vec2 q = vec2(length(p.xy) - t.x, p.z);
     return length(q) - t.y;
 }
@@ -74,40 +85,57 @@ float blend(float a, float b){
     return mix(b, a, h) - k * h * (1-h);
 }
 
+float x = 90 * PI / 4;
+mat4 rotation = mat4 (
+    vec4(cos(x), 0, sin(x), 0),
+    vec4(0, 1, 0, 0),
+    vec4(-sin(x), 0, cos(x), 0),
+    vec4(0, 0, 0, 1));
 
 float fSceneTorus(vec3 p){
 
-    float torus;
+    float torus1;
+    vec3 p1 = p + vec3(4,0,4);
+    p1 = mod(p1, vec3(8,0,8));
+    p1 = p1 - vec3(4,0,4);
 
-    torus = torus(p - vec3(0,3,0), vec2(3, 1));
+    torus1 = torus1(p1, vec2(3, 0.5));
 
-    return torus;
+    float torus2;
+    vec3 p2 = p - vec3(0,0,4);
+    p2 = p2 + vec3(4,0,4);
+    p2 = mod(p2, vec3(8,0,8));
+    p2 = p2 - vec3(4,0,4);
+
+    torus2 = torus2(p2, vec2(3, 0.5));
+
+    float torus3;
+    vec3 p3 = p - vec3(4,0,4);
+    p3 = p3 + vec3(4,0,4);
+    p3 = mod(p3, vec3(8,0,8));
+    p3 = p3 - vec3(4,0,4);
+
+    torus3 = torus3(p3, vec2(3, 0.5));
+
+    return min(min(torus3, torus2), torus1);
 }
 
 float fPlane(vec3 p){
     return plane(vec3(p) - vec3(0, -1, 0), vec4(0, 1, 0, 0));
 }
 
-float f(vec3 p){
-    float x = fSceneTorus(p);
-
-    float y = fPlane(p);
-
-    return min(x,y);
-}
-
 float softShadow(vec3 p) {
 
-    int i = 0;
-    float kd;
+     int i = 0;
+     float kd;
 
     vec3 lightDir = normalize(LIGHT_POS[i] - p);
     kd = 1;
     int step = 0;
 
     for (float t = 0.1; t < length(LIGHT_POS[i] - p) && step < RENDER_DEPTH && kd > 0.001; ){
-        float d = abs(f(p + t * lightDir));
-        if (d < CLOSE_ENOUGH){
+        float d = abs(fSceneTorus(p + t * lightDir));
+        if (d < 0.001){
             kd = 0;
         } else {
             kd = min(kd, 16 * d/t);
@@ -116,12 +144,19 @@ float softShadow(vec3 p) {
         t += d;
         step++;
         i++;
-
     }
 
-    return kd;
+
+     return kd;
 }
 
+float f(vec3 p){
+
+    float x = fSceneTorus(p);
+    float y = fPlane(p);
+
+    return min(x,y);
+}
 
 vec3 getNormal(vec3 pt) {
   return normalize(GRADIENT(pt, f));
@@ -165,21 +200,18 @@ float shade(vec3 eye, vec3 pt, vec3 n) {
 
   for (int i = 0; i < LIGHT_POS.length(); i++) {
     vec3 l = normalize(LIGHT_POS[i] - pt);
-//    float diffuse = 1.0 * max(dot(n, l), 0);
-//    val += diffuse;
 
     float kd = softShadow(pt);
-    float diffuse = kd * max(dot(n,l), 0);
+    float diffuse = kd * max(dot(n, l), 0);
     val += diffuse;
 
     vec3 viewDir = normalize(pt - eye);
     vec3 reflectDir = normalize(reflect(l, normalize(n)));
 
-    float specular = 1.0 * pow(max(dot(reflectDir, viewDir), 0), 256);
+    float specular = kd * pow(max(dot(reflectDir, viewDir), 0), 256);
     val += specular;
 
   }
-
   return val;
 }
 
